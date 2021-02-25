@@ -111,7 +111,7 @@ public class SIPCommander implements ISIPCommander {
     * @param upDown     镜头上移下移 0:停止 1:上移 2:下移
     * @param inOut      镜头放大缩小 0:停止 1:缩小 2:放大
     * @param moveSpeed  镜头移动速度 默认 0XFF (0-255)
-    * @param zoomSpeed  镜头缩放速度 默认 0X1 (0-255)
+    * @param zoomSpeed  镜头缩放速度 默认 0X1 (0-15)
     */
     public static String cmdString(int leftRight, int upDown, int inOut, int moveSpeed, int zoomSpeed) {
 		int cmdCode = 0;
@@ -137,14 +137,55 @@ public class SIPCommander implements ISIPCommander {
 		strTmp = String.format("%02X", moveSpeed);
 		builder.append(strTmp, 0, 2);
 		builder.append(strTmp, 0, 2);
-		strTmp = String.format("%X", zoomSpeed);
+//		strTmp = String.format("%X", zoomSpeed);
+		int zs=(zoomSpeed<<4 & 0XF0);
+		strTmp = String.format("%X", zs);
 		builder.append(strTmp, 0, 1).append("0");
 		//计算校验码
-		int checkCode = (0XA5 + 0X0F + 0X01 + cmdCode + moveSpeed + moveSpeed + (zoomSpeed /*<< 4*/ & 0XF0)) % 0X100;
+		//int checkCode = (0XA5 + 0X0F + 0X01 + cmdCode + moveSpeed + moveSpeed + (zoomSpeed /*<< 4*/ & 0XF0)) % 0X100;
+		int checkCode = (0XA5 + 0X0F + 0X01 + cmdCode + moveSpeed + moveSpeed + (zs)) % 0X100;
 		strTmp = String.format("%02X", checkCode);
 		builder.append(strTmp, 0, 2);
 		return builder.toString();
 }
+
+	/**
+	 * 云台指令码计算
+	 *
+	 * @param aperture 光圈大小 0:停止 9:光圈小 10:光圈大
+	 * @param foucs 聚焦远近 0:停止 7:聚焦近 8:聚焦远
+	 * @param apertureSpeed 光圈速度 默认 0XFF (0-255)
+	 * @param foucsSpeed 聚焦速度 默认 0XFF (0-255)
+	 * @return
+	 */
+	public static String cmdString2(int aperture, int foucs, int apertureSpeed, int foucsSpeed) {
+		int cmdCode = 0;
+		if (aperture == 9) {
+			cmdCode |= 0x48; // 光圈小
+		} else if (aperture == 10) {
+			cmdCode |= 0x44; // 光圈大
+		}
+		if (foucs == 7) {
+			cmdCode |= 0x42; // 聚焦近
+		} else if (foucs == 8) {
+			cmdCode |= 0x41; // 聚焦远
+		}
+		StringBuilder builder = new StringBuilder("A50F01");
+		String strTmp;
+		strTmp = String.format("%02X", cmdCode);
+		builder.append(strTmp, 0, 2);
+		strTmp = String.format("%02X", foucsSpeed);
+		builder.append(strTmp, 0, 2);
+		strTmp = String.format("%02X", apertureSpeed);
+		builder.append(strTmp, 0, 2);
+		builder.append(strTmp, 0, 1).append("0");
+		//计算校验码
+		int checkCode = (0XA5 + 0X0F + 0X01 + cmdCode + foucsSpeed + apertureSpeed + 0X00) % 0X100;
+		strTmp = String.format("%02X", checkCode);
+		builder.append(strTmp, 0, 2);
+		return builder.toString();
+	}
+
 
 
 	/**
@@ -173,6 +214,7 @@ public class SIPCommander implements ISIPCommander {
 			ptzXml.append("<Info>");
 			ptzXml.append("</Info>");
 			ptzXml.append("</Control>");
+			System.out.println(ptzXml.toString());
 			
 			Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), "ViaPtzBranch", "FromPtzTag", "ToPtzTag");
 			
@@ -553,4 +595,7 @@ public class SIPCommander implements ISIPCommander {
 		return clientTransaction;
 	}
 
+	public static void main(String[] args) {
+		System.out.println(cmdString(0,0,1,0,1));
+	}
 }
